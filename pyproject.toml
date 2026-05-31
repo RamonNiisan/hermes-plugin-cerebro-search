@@ -1,0 +1,14 @@
+[project]
+name = "hermes-plugin-cerebro-search"
+version = "0.1.0"
+description = "A Hermes Agent plugin that adds local-first SQLite/FTS search and optional Ollama embeddings for a Markdown knowledge base."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Ramon Gomes"}]
+keywords = ["hermes-agent", "plugin", "automation", "ai-agent"]
+dependencies = ["PyYAML>=6.0"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
