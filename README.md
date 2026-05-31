@@ -1,42 +1,56 @@
-# Cerebro Search
+# Hermes Plugin: Cerebro Search
 
-        A Hermes Agent plugin that adds local-first SQLite/FTS search and optional Ollama embeddings for a Markdown knowledge base.
+A local-first search plugin for Hermes Agent that indexes a Markdown knowledge base with SQLite FTS and optional Ollama embeddings.
 
-        ## What it is
+## Overview
 
-        This is a public, sanitized Hermes Agent plugin extracted from real local-agent workflows. It is intended as a portfolio-quality example of agent tooling: local-first state, explicit tool schemas, safe defaults, and no committed secrets or personal runtime data.
+This repository contains a Hermes Agent plugin designed for local-first agent workflows. It focuses on practical automation: explicit tool boundaries, inspectable state, deterministic behavior where possible, and small pieces that can be understood independently.
 
-        ## Installation
+## Features
 
-        Copy this directory into your Hermes plugins directory and restart Hermes:
+- Builds and maintains a SQLite/FTS index over Markdown and text files.
+- Supports discovery, browse, update-file, rebuild, and scroll-style retrieval flows.
+- Can combine knowledge-base retrieval with Hermes session search and fact-store results.
+- Optionally uses Ollama embeddings for semantic retrieval.
+- Detects external file changes and updates the index incrementally.
 
-        ```bash
-        cp -R . "$HERMES_HOME/plugins/cerebro-search"
-        ```
+## Tools
 
-        Or symlink it during development:
+- `cerebro_index`
+- `cerebro_search`
+- `context_search`
+- `cerebro_watch`
 
-        ```bash
-        ln -s "$(pwd)" "$HERMES_HOME/plugins/cerebro-search"
-        ```
+## Architecture
+
+- `__init__.py` registers Hermes tools and routes calls into the index runtime.
+- `scripts/cerebro_search_index.py` implements indexing, chunking, FTS querying, browsing, and optional vector search.
+- `plugin.yaml` declares tool metadata for Hermes.
 
 ## Configuration
 
-Set `CEREBRO_ROOT` or `KNOWLEDGE_BASE_ROOT` to the Markdown vault/knowledge-base directory. Optional embeddings use `CEREBRO_OLLAMA_HOST` and `CEREBRO_EMBED_MODEL`.
+Set `CEREBRO_ROOT` or `KNOWLEDGE_BASE_ROOT` to the knowledge-base directory. Optional embedding configuration uses `CEREBRO_OLLAMA_HOST`, `CEREBRO_EMBED_MODEL`, or `OLLAMA_HOST`.
 
-        ## Safety notes
+## Installation
 
-        - No API keys, tokens, cookies, logs, browser profiles, or local memory databases are committed.
-        - Local paths are resolved from environment variables or the user's home directory.
-        - Generated state belongs in ignored runtime directories.
+Clone the repository into your Hermes plugins directory or symlink it during development:
 
-        ## Development checks
+```bash
+git clone https://github.com/RamonNiisan/hermes-plugin-cerebro-search.git
+ln -s "$(pwd)/hermes-plugin-cerebro-search" "$HERMES_HOME/plugins/cerebro-search"
+```
 
-        ```bash
-        python -m compileall .
-        python scripts/security_scan.py .
-        ```
+Restart Hermes after installing or changing plugins so the tool registry is rebuilt.
 
-        ## License
+## Development
 
-        MIT
+Run the basic validation checks before opening a pull request:
+
+```bash
+python -m compileall .
+python scripts/security_scan.py .
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
