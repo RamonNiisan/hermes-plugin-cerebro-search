@@ -1,12 +1,14 @@
 name: cerebro-search
 version: 1.0.0
 description: >
-  Persistent local-first search index for a local Markdown knowledge base.
-  FTS5 + optional Ollama embeddings. Joint retrieval with Hermes sessions
-  and holographic fact store. External change detection (Obsidian/manual)
-  without LLM.
+  Persistent local-first search index for a local Markdown knowledge base
+  or Obsidian-style vault. FTS5 + optional Ollama embeddings. Joint retrieval
+  with Hermes sessions and holographic fact store. External change detection
+  without LLM. Portable across arbitrary folder structures; no specific
+  Cérebro layout is required.
 provides_tools:
   - cerebro_index
   - cerebro_search
   - context_search
   - cerebro_watch
+

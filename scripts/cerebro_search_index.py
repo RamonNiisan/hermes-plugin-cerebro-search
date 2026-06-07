@@ -603,13 +603,31 @@ def browse(limit: int = 10, db_path: Path = DB) -> dict:
     con.close(); return {"ok":True,"mode":"browse","count":len(rows),"results":[dict(r) for r in rows]}
 
 
-def protocol() -> dict:
-    return {"ok": True, "protocol": "Índice encontra → Markdown confirma → LLM responde → se houver escrita, Markdown atualiza → índice sincroniza", "source_of_truth": "Cerebro em Markdown", "index_role": "SQLite/FTS/embeddings são cache operacional, não fonte canônica", "retrieval_order": ["Cerebro FTS para nomes/datas/títulos/tags", "Cerebro vector/Ollama para semântica", "session_search para histórico conversacional", "fact_store/ontology para fatos estruturados e relações", "abrir Markdown original antes de responder"], "conflict_rule": "Markdown canônico vence SQL, fact_store e memória auxiliar."}
+def protocol(name: str | None = None, root: Path | None = None, db_path: Path | None = None) -> dict:
+    kb_name = name or os.environ.get("CEREBRO_NAME") or os.environ.get("KNOWLEDGE_BASE_NAME") or "Markdown knowledge base"
+    return {
+        "ok": True,
+        "knowledge_base": kb_name,
+        "root": str(root or ROOT),
+        "db": str(db_path or DB),
+        "protocol": "Index finds → Markdown confirms → LLM answers → if writing is needed, Markdown updates → index syncs",
+        "source_of_truth": "Markdown files in the configured knowledge-base root",
+        "index_role": "SQLite/FTS/embeddings are operational cache, not the source of truth",
+        "retrieval_order": [
+            "FTS for names, dates, titles, tags, and exact terms",
+            "optional Ollama vector search for semantic retrieval",
+            "Hermes session_search for conversational history when context_search is used",
+            "fact_store/ontology for structured facts and relationships when available",
+            "open the original Markdown before answering or editing",
+        ],
+        "conflict_rule": "Configured Markdown knowledge base wins over SQL cache, fact_store, and auxiliary memory.",
+        "portability": "The plugin does not require a specific Cérebro folder layout; unknown folders are indexed and classified by their top-level directory.",
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap=argparse.ArgumentParser(description="Fast local Cerebro FTS/vector index, no chat LLM.")
-    ap.add_argument("--root", default=str(ROOT)); ap.add_argument("--db", default=str(DB))
+    ap=argparse.ArgumentParser(description="Fast local Markdown knowledge-base FTS/vector index, no chat LLM.")
+    ap.add_argument("--root", default=str(ROOT)); ap.add_argument("--db", default=None)
     ap.add_argument("--rebuild", action="store_true"); ap.add_argument("--sync", action="store_true")
     ap.add_argument("--update-file", default=""); ap.add_argument("--embeddings", action="store_true")
     ap.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST); ap.add_argument("--embedding-model", default=DEFAULT_EMBED_MODEL)
@@ -618,9 +636,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--file-id", type=int, default=None); ap.add_argument("--path", default=None); ap.add_argument("--chunk-id", type=int, default=None); ap.add_argument("--window", type=int, default=5)
     ap.add_argument("--browse", action="store_true"); ap.add_argument("--protocol", action="store_true")
     args=ap.parse_args(argv)
-    root=Path(args.root); db_path=Path(args.db)
+    root=Path(args.root).expanduser(); db_path=Path(args.db).expanduser() if args.db else root / ".indices" / "cerebro_search.sqlite"
     try:
-        if args.protocol: result=protocol()
+        if args.protocol: result=protocol(root=root, db_path=db_path)
         elif args.rebuild: result=rebuild(root, db_path, embeddings=args.embeddings, model=args.embedding_model, ollama_host=args.ollama_host)
         elif args.sync: result=sync(root, db_path, embeddings=args.embeddings, model=args.embedding_model, ollama_host=args.ollama_host)
         elif args.update_file: result=index_file(Path(args.update_file), root, db_path, embeddings=args.embeddings, model=args.embedding_model, ollama_host=args.ollama_host)
@@ -635,3 +653,6 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+

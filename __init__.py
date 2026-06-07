@@ -23,8 +23,19 @@ import time
 from pathlib import Path
 from typing import Any
 
-from hermes_constants import get_hermes_home
-from tools.registry import registry, tool_error
+try:
+    from hermes_constants import get_hermes_home
+except Exception:  # pragma: no cover - fallback for standalone tests outside Hermes.
+    def get_hermes_home() -> Path:
+        return Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")).expanduser()
+
+try:
+    from tools.registry import registry, tool_error
+except Exception:  # pragma: no cover - fallback for standalone tests outside Hermes.
+    registry = None
+
+    def tool_error(message: str) -> str:
+        return json.dumps({"success": False, "error": message}, ensure_ascii=False)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -49,7 +60,8 @@ SCRIPT = Path(os.environ.get("CEREBRO_INDEX_SCRIPT", Path(__file__).parent / "sc
 DB_PATH = _cerebro_root() / ".indices" / "cerebro_search.sqlite"
 WATCH_STATE_PATH = _cerebro_root() / ".indices" / "cerebro_watch_state.json"
 
-OLLAMA_HOST = os.environ.get("CEREBRO_OLLAMA_HOST", "http://127.0.0.1:11434")
+KNOWLEDGE_BASE_NAME = os.environ.get("CEREBRO_NAME") or os.environ.get("KNOWLEDGE_BASE_NAME") or "knowledge base"
+OLLAMA_HOST = os.environ.get("CEREBRO_OLLAMA_HOST") or os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434"
 OLLAMA_MODEL = os.environ.get("CEREBRO_EMBED_MODEL", "nomic-embed-text:latest")
 
 
@@ -100,7 +112,7 @@ def _cerebro_index_browse(limit: int = 10) -> dict:
 
 def _cerebro_index_protocol() -> dict:
     mod = _load_index_module()
-    return mod.protocol()
+    return mod.protocol(name=KNOWLEDGE_BASE_NAME, root=_cerebro_root(), db_path=DB_PATH)
 
 
 def cerebro_index_tool(

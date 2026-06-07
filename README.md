@@ -9,6 +9,7 @@ This repository contains a Hermes Agent plugin designed for local-first agent wo
 ## Features
 
 - Builds and maintains a SQLite/FTS index over Markdown and text files.
+- Works with arbitrary Markdown knowledge-base layouts, not only one Cérebro structure.
 - Supports discovery, browse, update-file, rebuild, and scroll-style retrieval flows.
 - Can combine knowledge-base retrieval with Hermes session search and fact-store results.
 - Optionally uses Ollama embeddings for semantic retrieval.
@@ -29,24 +30,32 @@ This repository contains a Hermes Agent plugin designed for local-first agent wo
 
 ## Configuration
 
-The plugin is intentionally portable: the Markdown knowledge base is selected by environment variable, not by a hardcoded local path.
+The plugin is intentionally portable: the Markdown knowledge base is selected by environment variable, not by a hardcoded local path. It does **not** require a specific Cérebro folder layout; any directory tree of Markdown/text files can be indexed.
 
 Set one of these variables before starting Hermes:
 
-- `CEREBRO_ROOT` — preferred, explicit knowledge-base root.
+- `CEREBRO_ROOT` — preferred when your vault/system is called Cérebro.
 - `KNOWLEDGE_BASE_ROOT` — generic alias for non-Cérebro vaults.
 - `OBSIDIAN_VAULT_PATH` — useful when the knowledge base is an Obsidian vault.
 
-If no variable is set, the plugin tries these conventional folders:
+Optional naming/configuration:
+
+- `KNOWLEDGE_BASE_NAME` or `CEREBRO_NAME` — display name used in the retrieval protocol/status output.
+- `CEREBRO_OLLAMA_HOST` or `OLLAMA_HOST` — default `http://127.0.0.1:11434`.
+- `CEREBRO_EMBED_MODEL` — default `nomic-embed-text:latest`.
+
+If no root variable is set, the plugin tries these conventional folders:
 
 1. `~/Documents/Cerebro`
 2. `~/Documents/Cérebro`
 3. `~/Documents/KnowledgeBase`
 
-Optional embedding configuration:
+How arbitrary structures are handled:
 
-- `CEREBRO_OLLAMA_HOST` or `OLLAMA_HOST` — default `http://127.0.0.1:11434`.
-- `CEREBRO_EMBED_MODEL` — default `nomic-embed-text:latest`.
+- The index recursively scans supported text files under the configured root.
+- Known Cérebro layers such as `Projetos`, `Pessoas`, `Memória`, etc. are classified by name when present.
+- Unknown folder layouts are still indexed; their top-level directory becomes the `layer` field (for example `Areas/`, `Projects/`, `People/`, `Research/`).
+- SQLite files under `.indices/` are cache/state. Your Markdown remains the source of truth.
 
 Embeddings are optional. FTS5 search works without Ollama.
 
@@ -70,7 +79,10 @@ ln -s "$(pwd)/hermes-plugin-cerebro-search" "${HERMES_HOME:-$HOME/.hermes}/plugi
 Then export your knowledge-base path and restart Hermes so the tool registry is rebuilt:
 
 ```bash
-export CEREBRO_ROOT="$HOME/Documents/Cerebro"   # adjust to your vault/root
+export KNOWLEDGE_BASE_ROOT="$HOME/Documents/MyVault"       # generic
+export KNOWLEDGE_BASE_NAME="My Vault"                     # optional display name
+# or, for a Cérebro-style vault:
+export CEREBRO_ROOT="$HOME/Documents/Cerebro"
 hermes
 ```
 
@@ -81,12 +93,19 @@ For persistent configuration, place the export in the shell/service environment 
 The index script can be tested outside Hermes:
 
 ```bash
-export CEREBRO_ROOT="$HOME/Documents/Cerebro"   # adjust to your vault/root
+export KNOWLEDGE_BASE_ROOT="$HOME/Documents/MyVault"   # adjust to your vault/root
 python "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search/scripts/cerebro_search_index.py" --rebuild
 python "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search/scripts/cerebro_search_index.py" --query "example" --limit 3
 ```
 
-The SQLite index is created under `$CEREBRO_ROOT/.indices/` and is cache/state, not the source of truth.
+You can also pass a root per CLI invocation:
+
+```bash
+python scripts/cerebro_search_index.py --root "$HOME/Documents/MyVault" --rebuild
+python scripts/cerebro_search_index.py --root "$HOME/Documents/MyVault" --query "example" --limit 3
+```
+
+The SQLite index is created under the configured root's `.indices/` directory and is cache/state, not the source of truth.
 
 ## Development
 
@@ -100,3 +119,4 @@ python scripts/security_scan.py .
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
