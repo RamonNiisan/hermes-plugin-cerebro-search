@@ -36,11 +36,12 @@ from typing import Iterable
 
 
 def _default_root() -> Path:
-    env = os.environ.get("CEREBRO_ROOT") or os.environ.get("OBSIDIAN_VAULT_PATH")
+    env = os.environ.get("CEREBRO_ROOT") or os.environ.get("KNOWLEDGE_BASE_ROOT") or os.environ.get("OBSIDIAN_VAULT_PATH")
     if env:
         return Path(env).expanduser()
     candidates = [
         Path.home() / "Documents" / "Cerebro",
+        Path.home() / "Documents" / "Cérebro",
         Path.home() / "Documents" / "KnowledgeBase",
     ]
     for p in candidates:

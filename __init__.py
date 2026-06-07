@@ -31,11 +31,12 @@ from tools.registry import registry, tool_error
 # ---------------------------------------------------------------------------
 
 def _cerebro_root() -> Path:
-    env = os.environ.get("CEREBRO_ROOT") or os.environ.get("KNOWLEDGE_BASE_ROOT")
+    env = os.environ.get("CEREBRO_ROOT") or os.environ.get("KNOWLEDGE_BASE_ROOT") or os.environ.get("OBSIDIAN_VAULT_PATH")
     if env:
         return Path(env).expanduser()
     candidates = [
         Path.home() / "Documents" / "Cerebro",
+        Path.home() / "Documents" / "Cérebro",
         Path.home() / "Documents" / "KnowledgeBase",
     ]
     for p in candidates:
@@ -251,8 +252,13 @@ def context_search_tool(
             try:
                 mod = _load_index_module()
                 cerebro_res = mod.discover(
-                    query, limit=limit, sort=None, db_path=DB_PATH,
-                    vector=vector, model=OLLAMA_MODEL, ollama_host=OLLAMA_HOST,
+                    query,
+                    limit=limit,
+                    sort=None,
+                    db_path=DB_PATH,
+                    vector=vector,
+                    model=OLLAMA_MODEL,
+                    ollama_host=OLLAMA_HOST,
                 )
                 result["results"]["cerebro"] = cerebro_res
             except Exception as exc:
@@ -262,8 +268,19 @@ def context_search_tool(
             try:
                 ss = _lazy_load_session_search()
                 if ss is not None:
-                    session_res = ss(query=query, limit=limit, sort=sort)
-                    result["results"]["sessions"] = {"ok": True, "count": len(session_res), "results": session_res}
+                    session_raw = ss(query=query, limit=limit, sort=sort)
+                    try:
+                        session_res = json.loads(session_raw) if isinstance(session_raw, str) else session_raw
+                    except json.JSONDecodeError:
+                        session_res = {"success": False, "error": str(session_raw)}
+                    if isinstance(session_res, dict):
+                        result["results"]["sessions"] = session_res
+                    else:
+                        result["results"]["sessions"] = {
+                            "ok": False,
+                            "error": "session_search returned an unexpected shape",
+                            "raw": session_res,
+                        }
                 else:
                     result["results"]["sessions"] = {"ok": False, "error": "session_search not available"}
             except Exception as exc:
@@ -305,7 +322,7 @@ def context_search_tool(
         return tool_error(str(e))
 
 
-# ---------------------------------------------------------------------------
+
 # cerebro_watch — detect external changes, no LLM
 # ---------------------------------------------------------------------------
 
@@ -475,8 +492,19 @@ def _register_tool(ctx, name: str, handler, description: str, properties: dict |
         ctx.register_tool(name, handler)
 
 
+def _dispatch_kwargs(fn):
+    """Adapt Hermes registry dispatch (handler(args, **kw)) to keyword handlers."""
+    def _handler(args: dict | None = None, **_kwargs):
+        if args is None:
+            args = {}
+        if not isinstance(args, dict):
+            args = {}
+        return fn(**args)
+    return _handler
+
+
 def register(ctx) -> None:
-    _register_tool(ctx, "cerebro_index", cerebro_index_tool, "Maintain the local Markdown knowledge-base SQLite/FTS index.", {"action": {"type": "string", "default": "sync"}, "rebuild": {"type": "boolean"}, "update_file": {"type": "string"}, "embeddings": {"type": "boolean"}, "limit": {"type": "integer", "default": 10}})
-    _register_tool(ctx, "cerebro_search", cerebro_search_tool, "Search the local Markdown knowledge-base index.", {"query": {"type": "string"}, "limit": {"type": "integer", "default": 5}, "sort": {"type": "string"}, "vector": {"type": "boolean"}, "file_id": {"type": "integer"}, "chunk_id": {"type": "integer"}, "path": {"type": "string"}, "window": {"type": "integer", "default": 5}})
-    _register_tool(ctx, "context_search", context_search_tool, "Joint retrieval across the knowledge-base index, Hermes sessions, and optional fact store.", {"query": {"type": "string"}, "sources": {"type": "array", "items": {"type": "string"}}, "limit": {"type": "integer", "default": 5}, "sort": {"type": "string"}, "vector": {"type": "boolean"}}, ["query"])
-    _register_tool(ctx, "cerebro_watch", cerebro_watch_tool, "Detect external knowledge-base changes and update the local index.", {})
+    _register_tool(ctx, "cerebro_index", _dispatch_kwargs(cerebro_index_tool), "Maintain the local Markdown knowledge-base SQLite/FTS index.", {"action": {"type": "string", "default": "sync"}, "rebuild": {"type": "boolean"}, "update_file": {"type": "string"}, "embeddings": {"type": "boolean"}, "limit": {"type": "integer", "default": 10}})
+    _register_tool(ctx, "cerebro_search", _dispatch_kwargs(cerebro_search_tool), "Search the local Markdown knowledge-base index.", {"query": {"type": "string"}, "limit": {"type": "integer", "default": 5}, "sort": {"type": "string"}, "vector": {"type": "boolean"}, "file_id": {"type": "integer"}, "chunk_id": {"type": "integer"}, "path": {"type": "string"}, "window": {"type": "integer", "default": 5}})
+    _register_tool(ctx, "context_search", _dispatch_kwargs(context_search_tool), "Joint retrieval across the knowledge-base index, Hermes sessions, and optional fact store.", {"query": {"type": "string"}, "sources": {"type": "array", "items": {"type": "string"}}, "limit": {"type": "integer", "default": 5}, "sort": {"type": "string"}, "vector": {"type": "boolean"}}, ["query"])
+    _register_tool(ctx, "cerebro_watch", _dispatch_kwargs(cerebro_watch_tool), "Detect external knowledge-base changes and update the local index.", {})

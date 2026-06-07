@@ -29,18 +29,64 @@ This repository contains a Hermes Agent plugin designed for local-first agent wo
 
 ## Configuration
 
-Set `CEREBRO_ROOT` or `KNOWLEDGE_BASE_ROOT` to the knowledge-base directory. Optional embedding configuration uses `CEREBRO_OLLAMA_HOST`, `CEREBRO_EMBED_MODEL`, or `OLLAMA_HOST`.
+The plugin is intentionally portable: the Markdown knowledge base is selected by environment variable, not by a hardcoded local path.
+
+Set one of these variables before starting Hermes:
+
+- `CEREBRO_ROOT` — preferred, explicit knowledge-base root.
+- `KNOWLEDGE_BASE_ROOT` — generic alias for non-Cérebro vaults.
+- `OBSIDIAN_VAULT_PATH` — useful when the knowledge base is an Obsidian vault.
+
+If no variable is set, the plugin tries these conventional folders:
+
+1. `~/Documents/Cerebro`
+2. `~/Documents/Cérebro`
+3. `~/Documents/KnowledgeBase`
+
+Optional embedding configuration:
+
+- `CEREBRO_OLLAMA_HOST` or `OLLAMA_HOST` — default `http://127.0.0.1:11434`.
+- `CEREBRO_EMBED_MODEL` — default `nomic-embed-text:latest`.
+
+Embeddings are optional. FTS5 search works without Ollama.
 
 ## Installation
 
 Clone the repository into your Hermes plugins directory or symlink it during development:
 
 ```bash
-git clone https://github.com/RamonNiisan/hermes-plugin-cerebro-search.git
-ln -s "$(pwd)/hermes-plugin-cerebro-search" "$HERMES_HOME/plugins/cerebro-search"
+mkdir -p "${HERMES_HOME:-$HOME/.hermes}/plugins"
+git clone https://github.com/RamonNiisan/hermes-plugin-cerebro-search.git "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search"
 ```
 
-Restart Hermes after installing or changing plugins so the tool registry is rebuilt.
+Or, for local development:
+
+```bash
+mkdir -p "${HERMES_HOME:-$HOME/.hermes}/plugins"
+git clone https://github.com/RamonNiisan/hermes-plugin-cerebro-search.git
+ln -s "$(pwd)/hermes-plugin-cerebro-search" "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search"
+```
+
+Then export your knowledge-base path and restart Hermes so the tool registry is rebuilt:
+
+```bash
+export CEREBRO_ROOT="$HOME/Documents/Cerebro"   # adjust to your vault/root
+hermes
+```
+
+For persistent configuration, place the export in the shell/service environment that starts Hermes.
+
+## CLI smoke test
+
+The index script can be tested outside Hermes:
+
+```bash
+export CEREBRO_ROOT="$HOME/Documents/Cerebro"   # adjust to your vault/root
+python "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search/scripts/cerebro_search_index.py" --rebuild
+python "${HERMES_HOME:-$HOME/.hermes}/plugins/cerebro-search/scripts/cerebro_search_index.py" --query "example" --limit 3
+```
+
+The SQLite index is created under `$CEREBRO_ROOT/.indices/` and is cache/state, not the source of truth.
 
 ## Development
 
